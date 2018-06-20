@@ -15,6 +15,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.sql.Blob;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -28,6 +29,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.imageio.ImageIO;
 import javax.swing.DefaultListModel;
+import javax.swing.DefaultListSelectionModel;
 import javax.swing.ImageIcon;
 import javax.swing.InputVerifier;
 import javax.swing.JComponent;
@@ -63,6 +65,7 @@ public class UserCRUDFrame extends javax.swing.JFrame
     public static final String imagesFileName = "UserImages.dat";
     private DefaultListModel<Item> emailModel = new DefaultListModel<>();
     private DefaultListModel<Item> idModel = new DefaultListModel<>();
+    private DefaultListModel<Item> hobbyModel = new DefaultListModel<>();
     
     public void enableComponents(boolean b)
     {
@@ -125,7 +128,8 @@ public class UserCRUDFrame extends javax.swing.JFrame
         imgUser = null;
         lblPicture.setIcon(null);
         tfDob.setText("");
-       
+        
+        lstHobbies.clearSelection();
     }
     
     public boolean isTextFieldBlank(JTextField tf)
@@ -321,26 +325,65 @@ public class UserCRUDFrame extends javax.swing.JFrame
     }
     public void fetchData()  //fetches data from the user with curIndex.
     {
-        if(curID==-1)
-            blankComponents();
-        else
-        {
-            try {
+        blankComponents();
+        if(lst.getSelectedIndex() == -1)
+            return ;
+        curID = emailModel.getElementAt(lst.getSelectedIndex()).getId();
+        System.out.println("fetchdata");
+        try {
                 Connection con = Main.db.createConnection();
                 Statement stmt = con.createStatement();
                 ResultSet rs = stmt.executeQuery("select * from myusers where id="+curID);
                 if(rs.next())
                     fetchFromUser(createUser(con,rs));
+                
+                stmt = con.createStatement();
+                rs = stmt.executeQuery("select HobbyId from UserHobbies where UserID="+curID);
+                while(rs.next())
+                {
+                    int id = rs.getInt(1);
+                    for(int i=0;i<hobbyModel.size();i++)
+                        if(hobbyModel.getElementAt(i).getId()==id)
+                        {
+                            lstHobbies.setSelectedIndex(i);
+                            break;
+                        }
+                }
                 con.close();
             } catch (SQLException ex) {
                 Logger.getLogger(UserCRUDFrame.class.getName()).log(Level.SEVERE, null, ex);
             }
-        }
     }
     public UserCRUDFrame()
     {
            try {
                initComponents();
+                lstHobbies.setModel(hobbyModel);
+                        // === Makes more than one check box in a list box checked at a time === //
+            lstHobbies.setSelectionModel(new DefaultListSelectionModel() 
+            {
+                @Override
+                public void setSelectionInterval(int index0, int index1) 
+                {
+                    if(super.isSelectedIndex(index0)) 
+                        super.removeSelectionInterval(index0, index1);
+                    else
+                        super.addSelectionInterval(index0, index1);
+                }
+            });
+            // ===================================================================== //
+           lstHobbies.setCellRenderer(new CheckboxListCellRenderer());
+
+        /* adding hobbies to list */
+        
+        Connection con = Main.db.createConnection();
+        Statement stmt = con.createStatement();
+        ResultSet rs = stmt.executeQuery("select * from Hobby");
+        
+        while(rs.next())
+            hobbyModel.addElement(new Item(rs.getString(2),rs.getInt(1)));
+        
+        
                try {
                    readStateCap();
                } catch (FileNotFoundException ex) {
@@ -355,10 +398,8 @@ public class UserCRUDFrame extends javax.swing.JFrame
                mapMarital.put('S', radSeperated);
                
 
-            
-               Connection con = Main.db.createConnection();
-               Statement stmt = con.createStatement();
-               ResultSet rs = stmt.executeQuery("Select id,code,email from Myusers");
+               stmt = con.createStatement();
+               rs = stmt.executeQuery("Select id,code,email from Myusers");
                
             /* ------------- adding to the model --------------------*/
             while(rs.next())
@@ -483,6 +524,8 @@ public class UserCRUDFrame extends javax.swing.JFrame
         lst = new javax.swing.JList<>();
         radCode = new javax.swing.JRadioButton();
         radEmail = new javax.swing.JRadioButton();
+        jScrollPane3 = new javax.swing.JScrollPane();
+        lstHobbies = new javax.swing.JList<>();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setTitle("USER CRUD");
@@ -699,6 +742,8 @@ public class UserCRUDFrame extends javax.swing.JFrame
             }
         });
 
+        jScrollPane3.setViewportView(lstHobbies);
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
@@ -777,7 +822,6 @@ public class UserCRUDFrame extends javax.swing.JFrame
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(layout.createSequentialGroup()
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 324, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(jLabel5))
                         .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
@@ -805,7 +849,12 @@ public class UserCRUDFrame extends javax.swing.JFrame
                         .addComponent(btnSave)
                         .addGap(18, 18, 18)
                         .addComponent(btnDelete)
-                        .addGap(0, 0, Short.MAX_VALUE))))
+                        .addGap(0, 0, Short.MAX_VALUE))
+                    .addGroup(layout.createSequentialGroup()
+                        .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(jScrollPane3, javax.swing.GroupLayout.PREFERRED_SIZE, 313, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(150, 150, 150))))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -860,11 +909,18 @@ public class UserCRUDFrame extends javax.swing.JFrame
                                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                                             .addComponent(tfAdd2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                            .addComponent(jLabel7))
-                                        .addGap(16, 16, 16)
+                                            .addComponent(jLabel7)))
+                                    .addGroup(layout.createSequentialGroup()
+                                        .addGap(82, 82, 82)
                                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                                            .addComponent(jLabel8)
-                                            .addComponent(tfAdd3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                            .addComponent(btnUpload)
+                                            .addComponent(btnRemove))))
+                                .addGap(16, 16, 16)
+                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                                    .addComponent(jLabel8)
+                                    .addComponent(tfAdd3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                    .addGroup(layout.createSequentialGroup()
                                         .addGap(28, 28, 28)
                                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                                             .addComponent(jLabel9)
@@ -872,17 +928,15 @@ public class UserCRUDFrame extends javax.swing.JFrame
                                         .addGap(18, 18, 18)
                                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                                             .addComponent(jLabel10)
-                                            .addComponent(cmbCity, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                                    .addGroup(layout.createSequentialGroup()
-                                        .addGap(82, 82, 82)
-                                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                                            .addComponent(btnUpload)
-                                            .addComponent(btnRemove))))
-                                .addGap(23, 23, 23)
-                                .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                            .addComponent(cmbCity, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                        .addGap(23, 23, 23)
+                                        .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                        .addComponent(jScrollPane3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                        .addGap(32, 32, 32)))
                                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                                     .addGroup(layout.createSequentialGroup()
-                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                                             .addComponent(jLabel11)
                                             .addComponent(tfEmail, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
@@ -907,7 +961,7 @@ public class UserCRUDFrame extends javax.swing.JFrame
                                     .addComponent(btnPrev))
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                                 .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 97, javax.swing.GroupLayout.PREFERRED_SIZE)))))
-                .addContainerGap(220, Short.MAX_VALUE))
+                .addContainerGap(218, Short.MAX_VALUE))
         );
 
         pack();
@@ -974,9 +1028,8 @@ public class UserCRUDFrame extends javax.swing.JFrame
         if(checkValidData())
         {
             try {
-                System.out.println("data saved");
-                
                 Connection con = Main.db.createConnection();
+                con.setAutoCommit(false);
                 Statement stmt = con.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE,ResultSet.CONCUR_UPDATABLE);
                 ResultSet rs = stmt.executeQuery("select ID,Code,Address1,Address2,Address3,Name,DOB,StateID,CityID,Gender,Marital,PhNo,Email,Remarks,hasCar,hasHome,pic from MyUsers where id = "+curID);
                 if(mode=='a') //add mode
@@ -990,18 +1043,43 @@ public class UserCRUDFrame extends javax.swing.JFrame
                     rs.insertRow();
                     emailModel.addElement(new Item(tfEmail.getText().trim(),curID));
                     idModel.addElement(new Item(tfUserId.getText().trim(),curID));
-                    lst.setSelectedIndex(emailModel.size()-1);
-                    JOptionPane.showMessageDialog(this,"Data Added ");
                 }
                 else if(mode=='e') //edit mode
                 {
+                    /*deleting all hobbies for this user*/
+                    Statement stmt2 = con.createStatement();
+                    stmt2.executeUpdate("delete from UserHobbies where userid="+curID);
+                    
                     rs.next();
                     storeToResultSet(con,rs, curID);
                     rs.updateRow();
                     emailModel.setElementAt(new Item(tfEmail.getText().trim(),curID), lst.getSelectedIndex());
-                     JOptionPane.showMessageDialog(this,"Data Updated ");
                 }
+                   /*----------Save Hobbies-------------*/
+                    int id = -1;
+                    PreparedStatement pstmt3 = con.prepareStatement("insert into UserHobbies(UserID,HobbyID) values(?,?)");
+                    for(int i=0;i<hobbyModel.size();i++)
+                    {
+                        if(lstHobbies.isSelectedIndex(i))
+                        {
+                            id = hobbyModel.getElementAt(i).getId();
+                            pstmt3.setInt(1, curID);
+                            pstmt3.setInt(2,id);
+                            pstmt3.executeUpdate();
+                        }    
+                    }    
+                    /*----------------------------------*/
+                if(mode=='a')
+                {
+                    lst.setSelectedIndex(emailModel.size()-1);
+                    JOptionPane.showMessageDialog(this,"Data Added ");
+                }
+                else if(mode=='e')
+                     JOptionPane.showMessageDialog(this,"Data Updated ");
+                    
                 mode = 'n'; //navigating mode
+                con.commit();
+                con.setAutoCommit(true);
                 con.close();
                 fetchData();
                 enableComponents(false);
@@ -1085,6 +1163,7 @@ public class UserCRUDFrame extends javax.swing.JFrame
     private void btnDeleteActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnDeleteActionPerformed
         try {
             Connection con = Main.db.createConnection();
+            con.setAutoCommit(false);
             Statement stmt = con.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE,ResultSet.CONCUR_UPDATABLE);
             if(curID!=-1)
             {
@@ -1092,6 +1171,7 @@ public class UserCRUDFrame extends javax.swing.JFrame
                 if(rs.next())
                 {
                     rs.deleteRow();
+                    stmt.executeUpdate("delete from UserHobbies where userid="+curID);
                     if(lst.getSelectedIndex()==emailModel.size()-1)
                     {
                         emailModel.remove(lst.getSelectedIndex());
@@ -1114,6 +1194,8 @@ public class UserCRUDFrame extends javax.swing.JFrame
                     }
                 }
             }
+            con.commit();
+            con.setAutoCommit(true);
             con.close();
             enableComponents(false);
             fetchData();
@@ -1186,11 +1268,7 @@ public class UserCRUDFrame extends javax.swing.JFrame
 
     private void lstValueChanged(javax.swing.event.ListSelectionEvent evt) {//GEN-FIRST:event_lstValueChanged
         // TODO add your handling code here:
-        if(lst.getSelectedIndex()>=0)
-        {
-            curID = lst.getSelectedValue().getId();
             fetchData();
-        }
     }//GEN-LAST:event_lstValueChanged
 
     /**
@@ -1263,8 +1341,10 @@ public class UserCRUDFrame extends javax.swing.JFrame
     private javax.swing.JPanel jPanel1;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JScrollPane jScrollPane2;
+    private javax.swing.JScrollPane jScrollPane3;
     private javax.swing.JLabel lblPicture;
     private javax.swing.JList<Item> lst;
+    private javax.swing.JList<Item> lstHobbies;
     private javax.swing.JRadioButton radBachelor;
     private javax.swing.JRadioButton radCode;
     private javax.swing.JRadioButton radEmail;
